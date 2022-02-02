@@ -1,5 +1,5 @@
-#include "opencv2/opencv.hpp"
-#include <opencv2/highgui.hpp>
+#include <opencv2/opencv.hpp>
+#include <time.h>
 #include <iostream>
 
 cv::Mat abs_sobel_thresh(const cv::Mat &img, char orient, int thresh_min, int thresh_max);
@@ -19,6 +19,8 @@ int main( int argc, char** argv )
         return -1;
     }
 
+    int INDEX = 0;
+
     while (true){
         // Capture frame-by-frame
         cv::Mat frame;
@@ -30,31 +32,54 @@ int main( int argc, char** argv )
         }
         
         // ----------------------PREPROCESSING IMAGE---------------------- //
-        cv::imshow("RGB Color", frame);
+        // cv::imshow("RGB Color", frame);
         // STEP 1: GRAD X & GRAD Y (SOBEL) & COLOR_THRESH_HOLD
-        cv::Mat gradX_binary        = abs_sobel_thresh(frame, 'x', 60,  255);
-        cv::Mat gradY_binary        = abs_sobel_thresh(frame, 'y', 60, 255);
+        cv::Mat gradX_binary        = abs_sobel_thresh(frame, 'x', 40,  255);
+        cv::Mat gradY_binary        = abs_sobel_thresh(frame, 'y', 40, 255);
         cv::Mat c_binary            = color_thresh_hold(frame, cv::Point2i(100, 255), cv::Point2i(50, 255));
 
         // STEP 2: COMBINE GRAD X + GRAD Y + COLOR THRESH_HOLD TOGETHER
         cv::Mat preprocessImage     = ((gradX_binary == 1) & (gradY_binary == 1) | (c_binary == 1));
-        cv::imshow("preprocess Image", preprocessImage);
+        // cv::imshow("preprocess Image", preprocessImage);
 
         // ----------------------CREATE REGION OF INTEREST---------------------- //
         cv::Mat ROI                 = region_of_interest(preprocessImage);
-        cv::imshow("Region Of Interest", ROI);
+        // cv::imshow("Region Of Interest", ROI);
 
         // ----------------------WARP PERPESCTIVE---------------------- //
         cv::Mat WARP_PERPESCTIVE    = warpPerpesctiveUserDef(ROI);
-        cv::imshow("Warp Perpesctive", WARP_PERPESCTIVE);
+        // cv::imshow("Warp Perpesctive", WARP_PERPESCTIVE);
         cv::Point2i TOP_LEFT_COOR   = cv::Point2i(100, 200);
         int WIDTH_CROP              = 450;
         int HEIGHT_CROP             = 120;
         cv::Mat CROP_REGION         = WARP_PERPESCTIVE(cv::Rect(TOP_LEFT_COOR.x, TOP_LEFT_COOR.y, WIDTH_CROP, HEIGHT_CROP));
-        cv::imshow("Crop REGION", CROP_REGION);
+        // cv::imshow("Crop REGION", CROP_REGION);
+
+        // ----------------------BINARY THRESHHOLDING---------------------- //
+        cv::Mat BIN_THRESH;
+        cv::threshold(CROP_REGION, BIN_THRESH, 100, 255, cv::THRESH_BINARY);
+        cv::imshow("Binary Thresh Hold", BIN_THRESH);
 
         // ----------------------LANE DETECTION ALGORITHM---------------------- //
+        //Find the contours. Use the contourOutput Mat so the original image doesn't get overwritten
+        std::vector<std::vector<cv::Point> > contours;
+        cv::Mat contourOutput = BIN_THRESH.clone();
+        cv::findContours(contourOutput, contours, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
 
+        //Draw the contours
+        cv::Mat contourImage(BIN_THRESH.size(), CV_8UC3, cv::Scalar(0,0,0));
+        cv::Scalar colors[3];
+        colors[0] = cv::Scalar(255, 0, 0);
+        colors[1] = cv::Scalar(0, 255, 0);
+        colors[2] = cv::Scalar(0, 0, 255);
+        for (size_t idx = 0; idx < contours.size(); idx++) {
+            cv::drawContours(contourImage, contours, idx, colors[idx % 3]);
+        }
+
+        cv::imshow("Input Image", BIN_THRESH);
+        cv::imshow("Contours", contourImage);
+        cv::imwrite("./IMAGE_RESULT/" + std::to_string(INDEX) + ".jpg", contourImage);
+        INDEX = INDEX + 1;
         // Display the resulting frame
 
 
