@@ -1,18 +1,44 @@
 #include <opencv2/opencv.hpp>
 #include <time.h>
 #include <iostream>
+#include <chrono>
+#include <string.h>
 
 cv::Mat abs_sobel_thresh(const cv::Mat &img, char orient, int thresh_min, int thresh_max);
 cv::Mat color_thresh_hold(const cv::Mat &rgb_img, const cv::Point2i sthresh, const cv::Point2i vthresh);
 cv::Mat region_of_interest(const cv::Mat &preproc_img);
 cv::Mat warpPerpesctiveUserDef(const cv::Mat &bitwise_img);
+cv::Mat line_center_method(const cv::Mat &BIN_THRESH);
+
+// ----------------------SET-UP FILE NAME INFORMATION---------------------- //
+const std::string DIR_NAME      = "./Image_Video/";
+const std::string TAIL_NAME     = ".avi";
+const std::string FILE_NAME     = "vatcanvip"; // ABLE TO CHANGE !!!
+
+// ----------------------1. THRESH HOLD VARIABLE---------------------- //
+const int GRAD_MIN_THRESH_HOLD  = 40; // ABLE TO CHANGE
+const int GRAD_MAX_THRESH_HOLD  = 255; // ABLE TO CHANGE
+const cv::Point2i S_THRESH_HOLD = cv::Point2i(100, 255); // ABLE TO CHANGE
+const cv::Point2i V_THRESH_HOLD = cv::Point2i(50, 255); // ABLE TO CHANGE
+
+// ----------------------2. POINT TO WARP PERPESCTIVE--------------------- //
+const int COL_ORG_IMG           = 640; // ABLE TO CHANGE
+const int WIDTH_ORG_IMG         = 480; // ABLE TO CHANGE
+const cv::Point left_bot        = cv::Point(0, 320); // ABLE TO CHANGE
+const cv::Point left_top        = cv::Point(244, 255); // ABLE TO CHANGE
+const cv::Point right_top       = cv::Point(425, 255); // ABLE TO CHANGE
+const cv::Point right_bot       = cv::Point(COL_ORG_IMG, 320); // ABLE TO CHANGE
+
+// ----------------------3. CROPPING PURPOSE (RECTANGLE) ---------------------- //
+const cv::Point2i TOP_LEFT_COOR = cv::Point2i(100, 200);
+const int WIDTH_CROP            = 450;
+const int HEIGHT_CROP           = 120;
 
 int main( int argc, char** argv )
 {
     // Create a VideoCapture object and open the input file
     // If the input is the web camera, pass 0 instead of the video file name
-    cv::VideoCapture cap("./Image_Video/map_4_lane_ngoai.avi");
-
+    cv::VideoCapture cap(DIR_NAME + FILE_NAME + TAIL_NAME);
     // Check if camera opened successfully
     if (!cap.isOpened()){
         std::cout << "Error opening video stream or file" << std::endl;
@@ -23,6 +49,7 @@ int main( int argc, char** argv )
 
     while (true){
         // Capture frame-by-frame
+        auto begin_time = std::chrono::high_resolution_clock::now();
         cv::Mat frame;
         cap >> frame;
 
@@ -32,15 +59,15 @@ int main( int argc, char** argv )
         }
         
         // ----------------------PREPROCESSING IMAGE---------------------- //
-        // cv::imshow("RGB Color", frame);
+        cv::imshow("RGB Color", frame);
         // STEP 1: GRAD X & GRAD Y (SOBEL) & COLOR_THRESH_HOLD
-        cv::Mat gradX_binary        = abs_sobel_thresh(frame, 'x', 40,  255);
-        cv::Mat gradY_binary        = abs_sobel_thresh(frame, 'y', 40, 255);
-        cv::Mat c_binary            = color_thresh_hold(frame, cv::Point2i(100, 255), cv::Point2i(50, 255));
+        cv::Mat gradX_binary        = abs_sobel_thresh(frame, 'x', GRAD_MIN_THRESH_HOLD, GRAD_MAX_THRESH_HOLD);
+        cv::Mat gradY_binary        = abs_sobel_thresh(frame, 'y', GRAD_MIN_THRESH_HOLD, GRAD_MAX_THRESH_HOLD);
+        cv::Mat c_binary            = color_thresh_hold(frame, S_THRESH_HOLD, V_THRESH_HOLD);
 
         // STEP 2: COMBINE GRAD X + GRAD Y + COLOR THRESH_HOLD TOGETHER
         cv::Mat preprocessImage     = ((gradX_binary == 1) & (gradY_binary == 1) | (c_binary == 1));
-        // cv::imshow("preprocess Image", preprocessImage);
+        cv::imshow("preprocess Image", preprocessImage);
 
         // ----------------------CREATE REGION OF INTEREST---------------------- //
         cv::Mat ROI                 = region_of_interest(preprocessImage);
@@ -49,11 +76,8 @@ int main( int argc, char** argv )
         // ----------------------WARP PERPESCTIVE---------------------- //
         cv::Mat WARP_PERPESCTIVE    = warpPerpesctiveUserDef(ROI);
         // cv::imshow("Warp Perpesctive", WARP_PERPESCTIVE);
-        cv::Point2i TOP_LEFT_COOR   = cv::Point2i(100, 200);
-        int WIDTH_CROP              = 450;
-        int HEIGHT_CROP             = 120;
         cv::Mat CROP_REGION         = WARP_PERPESCTIVE(cv::Rect(TOP_LEFT_COOR.x, TOP_LEFT_COOR.y, WIDTH_CROP, HEIGHT_CROP));
-        // cv::imshow("Crop REGION", CROP_REGION);
+        // cv::imshow("Crop Region", CROP_REGION);
 
         // ----------------------BINARY THRESHHOLDING---------------------- //
         cv::Mat BIN_THRESH;
@@ -61,30 +85,21 @@ int main( int argc, char** argv )
         cv::imshow("Binary Thresh Hold", BIN_THRESH);
 
         // ----------------------LANE DETECTION ALGORITHM---------------------- //
-        //Find the contours. Use the contourOutput Mat so the original image doesn't get overwritten
-        std::vector<std::vector<cv::Point> > contours;
-        cv::Mat contourOutput = BIN_THRESH.clone();
-        cv::findContours(contourOutput, contours, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
+        // PHASE 1: LINE CENTER METHOD
+        cv::Mat FILTER_BASE_CENTER = line_center_method(BIN_THRESH);
+        cv::imshow("FILTER", FILTER_BASE_CENTER);
 
-        //Draw the contours
-        cv::Mat contourImage(BIN_THRESH.size(), CV_8UC3, cv::Scalar(0,0,0));
-        cv::Scalar colors[3];
-        colors[0] = cv::Scalar(255, 0, 0);
-        colors[1] = cv::Scalar(0, 255, 0);
-        colors[2] = cv::Scalar(0, 0, 255);
-        for (size_t idx = 0; idx < contours.size(); idx++) {
-            cv::drawContours(contourImage, contours, idx, colors[idx % 3]);
-        }
-
-        cv::imshow("Input Image", BIN_THRESH);
-        cv::imshow("Contours", contourImage);
-        cv::imwrite("./IMAGE_RESULT/" + std::to_string(INDEX) + ".jpg", contourImage);
-        INDEX = INDEX + 1;
-        // Display the resulting frame
-
+        // PHASE 2: CHOOSE 2 LANE BASE ON GAP, LENGTH AND ANGULAR
+        
 
         // Press  ESC on keyboard to exit   
         // break;
+        auto end_time = std::chrono::high_resolution_clock::now();
+        float fps = 1/(std::chrono::duration<double, std::milli>(end_time-begin_time).count()/1000);
+        std::cout << fps << std::endl; 
+
+        // PHASE 2: DETECT WHICH HAVE HIGHER % PROBALITIES BE LANE ()
+
         char c = (char)cv::waitKey(25);
         if (c == 27){
             break;
@@ -191,15 +206,15 @@ cv::Mat region_of_interest(const cv::Mat &preproc_img){
 
     std::vector<cv::Point> fillContSingle;
     // Add all points of the contour to the vector
-    cv::Point left_bot = cv::Point(0, 320);
-    cv::Point left_top = cv::Point(244, 255);
-    cv::Point right_top = cv::Point(425, 255);
-    cv::Point right_bot = cv::Point(COL_IMG, 320);
+    cv::Point roi_left_bot = left_bot;
+    cv::Point roi_left_top = left_top;
+    cv::Point roi_right_top = right_top;
+    cv::Point roi_right_bot = right_bot;
 
-    fillContSingle.push_back(left_bot);
-    fillContSingle.push_back(left_top);
-    fillContSingle.push_back(right_top);
-    fillContSingle.push_back(right_bot);
+    fillContSingle.push_back(roi_left_bot);
+    fillContSingle.push_back(roi_left_top);
+    fillContSingle.push_back(roi_right_top);
+    fillContSingle.push_back(roi_right_bot);
     
 
     std::vector< std::vector<cv::Point> > fillContAll;
@@ -217,10 +232,10 @@ cv::Mat warpPerpesctiveUserDef(const cv::Mat &bitwise_img) {
     cv::Point2f SRC[4];
     cv::Point2f DST[4];
 
-    SRC[0] = cv::Point2f(0, 320);
-    SRC[1] = cv::Point2f(240, 255);
-    SRC[2] = cv::Point2f(425, 255);
-    SRC[3] = cv::Point2f(bitwise_img.cols, 320);
+    SRC[0] = left_bot;
+    SRC[1] = left_top;
+    SRC[2] = right_top;
+    SRC[3] = right_bot;
 
     DST[0] = cv::Point2f(SRC[0].x/2 + SRC[1].x/2, SRC[0].y + 50);
     DST[1] = cv::Point2f(SRC[0].x/2 + SRC[1].x/2, SRC[1].y - 50);
@@ -230,4 +245,27 @@ cv::Mat warpPerpesctiveUserDef(const cv::Mat &bitwise_img) {
     cv::Mat LAMBDA = cv::getPerspectiveTransform(SRC, DST);
     cv::warpPerspective(bitwise_img, RETURN_MAT, LAMBDA, bitwise_img.size());
     return RETURN_MAT;
+}
+
+cv::Mat line_center_method(const cv::Mat &BIN_THRESH) {
+    int ROWS_MAX = BIN_THRESH.rows;
+    int COLS_MAX = BIN_THRESH.cols;
+    int X_CENTER = COLS_MAX/2;
+    cv::Mat FILTER_BASE_CENTER = cv::Mat(ROWS_MAX, COLS_MAX, CV_8U, uint8_t(0));
+
+    for (int y = ROWS_MAX - 1; y >= 0; --y){
+        for (int x = X_CENTER - 1; x >= 0; --x){
+            if (static_cast<int>(BIN_THRESH.at<uint8_t>(y, x)) != 0){
+                FILTER_BASE_CENTER.at<uint8_t>(y, x) = BIN_THRESH.at<uint8_t>(y, x);
+                break;
+            }
+        }
+        for (int x = X_CENTER - 1; x < COLS_MAX; ++x){
+            if (static_cast<int>(BIN_THRESH.at<uint8_t>(y, x)) != 0){
+                FILTER_BASE_CENTER.at<uint8_t>(y, x) = BIN_THRESH.at<uint8_t>(y, x);
+                break;
+            }
+        }
+    }
+    return FILTER_BASE_CENTER;
 }
