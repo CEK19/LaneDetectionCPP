@@ -3,6 +3,53 @@
 #include <iostream>
 #include <chrono>
 #include <string.h>
+#include <vector>
+
+class DetectComponent {
+    private:
+        std::vector<cv::Point2i> collectionDataPoint;
+        int length; // CACULATE BASED ON LINE INTEGRAL
+        cv::Point2i coor_start;
+        cv::Point2i coor_end;
+    public:
+        DetectComponent() {
+            this->length        = 0;
+            this->coor_start    = cv::Point2i(0, 0);
+            this->coor_end      = cv::Point2i(0, 0);
+        }
+
+        int getLength() {
+            return this->length;
+        }
+
+        void setLength(int newLength) {
+            this->length = newLength;
+        }
+
+        cv::Point2i getCoorStart() {
+            return coor_start;
+        }
+
+        void setCoorStart(cv::Point2i newPoint) {
+            this->coor_start = newPoint;
+        }
+
+        cv::Point2i getCoorEnd() {
+            return coor_end;
+        }
+
+        void setCoorEnd(cv::Point2i newPoint) {
+            this->coor_end = newPoint;
+        }
+
+        std::vector<cv::Point2i> getCollectionPoint() {
+            return this->collectionDataPoint;
+        }
+
+        void addPoint(cv::Point2i newPoint) {
+            (this->collectionDataPoint).push_back(newPoint);
+        }
+};
 
 #define BLACK_BINARY_VAL    0
 #define WHITE_BINARY_VAL    1
@@ -276,17 +323,25 @@ cv::Mat line_center_method(const cv::Mat &BIN_THRESH) {
     return FILTER_BASE_CENTER;
 }
 
-cv::Mat lane_detection_algo(const cv::Mat &FILTER_BASE_CENTER) {
-    int MAX_ROW = FILTER_BASE_CENTER.rows;
-    int MAX_COL = FILTER_BASE_CENTER.cols;
-    
+cv::Mat lane_detection_algo(const cv::Mat &FILTER, const cv::Mat &PRE_FILTER) {
+    const int MAX_ROW = FILTER.rows;
+    const int MAX_COL = FILTER.cols;
+
+    const int MARKED  = 1;
+    const int UNMARKED = 0;
+    cv::Mat MARKING_MATRIX = cv::Mat(MAX_ROW, MAX_COL, CV_8U, uint8_t(UNMARKED));
+
     const int center_point_x = MAX_COL/2;
     const int most_left_pixel_idx = 0;
     const int right_left_pixel_idx = MAX_COL - 1;
 
     for (int y = MAX_ROW - 1; y >= 0; --y) {
         for (int x = center_point_x; x >=  most_left_pixel_idx; --x) {
-
+            if (static_cast<int>(FILTER.at<uint8_t>(y, x)) == WHITE_BINARY_VAL && 
+                static_cast<int>(MARKING_MATRIX.at<uint8_t>(y, x)) == UNMARKED) 
+            {
+                
+            }
         }
     }
 
@@ -295,5 +350,5 @@ cv::Mat lane_detection_algo(const cv::Mat &FILTER_BASE_CENTER) {
 
         }
     }
-    return FILTER_BASE_CENTER;
+    return ;
 }
