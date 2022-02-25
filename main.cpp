@@ -4,11 +4,17 @@
 #include <chrono>
 #include <string.h>
 
+#define BLACK_BINARY_VAL    0
+#define WHITE_BINARY_VAL    1
+#define BLACK_DEC_VAL       0
+#define WHITE_DEC_VAL       255
+
 cv::Mat abs_sobel_thresh(const cv::Mat &img, char orient, int thresh_min, int thresh_max);
 cv::Mat color_thresh_hold(const cv::Mat &rgb_img, const cv::Point2i sthresh, const cv::Point2i vthresh);
 cv::Mat region_of_interest(const cv::Mat &preproc_img);
 cv::Mat warpPerpesctiveUserDef(const cv::Mat &bitwise_img);
 cv::Mat line_center_method(const cv::Mat &BIN_THRESH);
+cv::Mat lane_detection_algo(const cv::Mat &FILTER_BASE_CENTER);
 
 // ----------------------SET-UP FILE NAME INFORMATION---------------------- //
 const std::string DIR_NAME      = "./Image_Video/";
@@ -20,6 +26,8 @@ const int GRAD_MIN_THRESH_HOLD  = 40; // ABLE TO CHANGE
 const int GRAD_MAX_THRESH_HOLD  = 255; // ABLE TO CHANGE
 const cv::Point2i S_THRESH_HOLD = cv::Point2i(100, 255); // ABLE TO CHANGE
 const cv::Point2i V_THRESH_HOLD = cv::Point2i(50, 255); // ABLE TO CHANGE
+const int MIN_BIN_THRESHOLD     = 100;
+const int MAX_BIN_THRESHOLD     = 255;
 
 // ----------------------2. POINT TO WARP PERPESCTIVE--------------------- //
 const int COL_ORG_IMG           = 640; // ABLE TO CHANGE
@@ -66,31 +74,29 @@ int main( int argc, char** argv )
         cv::Mat c_binary            = color_thresh_hold(frame, S_THRESH_HOLD, V_THRESH_HOLD);
 
         // STEP 2: COMBINE GRAD X + GRAD Y + COLOR THRESH_HOLD TOGETHER
-        cv::Mat preprocessImage     = ((gradX_binary == 1) & (gradY_binary == 1) | (c_binary == 1));
+        cv::Mat preprocessImage     = ((gradX_binary == WHITE_BINARY_VAL) & (gradY_binary == WHITE_BINARY_VAL) | (c_binary == WHITE_BINARY_VAL));
         cv::imshow("preprocess Image", preprocessImage);
 
         // ----------------------CREATE REGION OF INTEREST---------------------- //
         cv::Mat ROI                 = region_of_interest(preprocessImage);
-        // cv::imshow("Region Of Interest", ROI);
 
         // ----------------------WARP PERPESCTIVE---------------------- //
         cv::Mat WARP_PERPESCTIVE    = warpPerpesctiveUserDef(ROI);
         // cv::imshow("Warp Perpesctive", WARP_PERPESCTIVE);
         cv::Mat CROP_REGION         = WARP_PERPESCTIVE(cv::Rect(TOP_LEFT_COOR.x, TOP_LEFT_COOR.y, WIDTH_CROP, HEIGHT_CROP));
-        // cv::imshow("Crop Region", CROP_REGION);
 
         // ----------------------BINARY THRESHHOLDING---------------------- //
         cv::Mat BIN_THRESH;
-        cv::threshold(CROP_REGION, BIN_THRESH, 100, 255, cv::THRESH_BINARY);
+        cv::threshold(CROP_REGION, BIN_THRESH, MIN_BIN_THRESHOLD, MAX_BIN_THRESHOLD, cv::THRESH_BINARY);
         cv::imshow("Binary Thresh Hold", BIN_THRESH);
 
         // ----------------------LANE DETECTION ALGORITHM---------------------- //
         // PHASE 1: LINE CENTER METHOD
-        cv::Mat FILTER_BASE_CENTER = line_center_method(BIN_THRESH);
+        cv::Mat FILTER_BASE_CENTER  = line_center_method(BIN_THRESH);
         cv::imshow("FILTER", FILTER_BASE_CENTER);
 
         // PHASE 2: CHOOSE 2 LANE BASE ON GAP, LENGTH AND ANGULAR
-        
+        cv::Mat DETECT_LANE         = lane_detection_algo(FILTER_BASE_CENTER);
 
         // Press  ESC on keyboard to exit   
         // break;
@@ -265,6 +271,28 @@ cv::Mat line_center_method(const cv::Mat &BIN_THRESH) {
                 FILTER_BASE_CENTER.at<uint8_t>(y, x) = BIN_THRESH.at<uint8_t>(y, x);
                 break;
             }
+        }
+    }
+    return FILTER_BASE_CENTER;
+}
+
+cv::Mat lane_detection_algo(const cv::Mat &FILTER_BASE_CENTER) {
+    int MAX_ROW = FILTER_BASE_CENTER.rows;
+    int MAX_COL = FILTER_BASE_CENTER.cols;
+    
+    const int center_point_x = MAX_COL/2;
+    const int most_left_pixel_idx = 0;
+    const int right_left_pixel_idx = MAX_COL - 1;
+
+    for (int y = MAX_ROW - 1; y >= 0; --y) {
+        for (int x = center_point_x; x >=  most_left_pixel_idx; --x) {
+
+        }
+    }
+
+    for (int  y = MAX_ROW -  1; y >= 0; --y) {
+        for (int x = center_point_x + 1; x <= right_left_pixel_idx; ++x) {
+
         }
     }
     return FILTER_BASE_CENTER;
