@@ -1,6 +1,6 @@
 # LaneDetectionCPP
-Improving FPS of Lane Detection Algorithm
-**Scope of this project**
+Improving FPS of Lane Detection Algorithm <br/>
+**Scope of this project** <br/>
  - With streets:
     - 2-way street
     - Turn left, turn right
