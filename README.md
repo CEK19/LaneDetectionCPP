@@ -1,6 +1,18 @@
 # LaneDetectionCPP
 Improving FPS of Lane Detection Algorithm
-
+**Scope of this project**
+ - With streets:
+    - 2-way street
+    - Turn left, turn right
+    - Crossroad + T junction
+    - Have dashed and curved line
+  - With Obstacles that Lidar can detect:
+    - Move with medium velocity (when comparing with Turtlebot) and straight direction.
+  - With Obstacles that Lidar can't detect:
+    - Can go through
+    - Visible with Camera
+    - Smaller than Turtlebot
+    - Noise is not too much
 **Prequesite:**
 - **Reference:** <br/>
   1. Install OpenCV: https://vitux.com/opencv_ubuntu/
@@ -108,17 +120,3 @@ Improving FPS of Lane Detection Algorithm
 - **[3] Some Error and Solution**
   1. `cannot open shared object file: No such file or directory` <br/>
   [SOLUTION]: Using `sudo ldconfig -v` before using `make`
-  
- **Scope of this project**
- - With streets:
-    - 2-way street
-    - Turn left, turn right
-    - Crossroad + T junction
-    - Have dashed and curved line
-  - With Obstacles that Lidar can detect:
-    - Move with medium velocity (when comparing with Turtlebot) and straight direction.
-  - With Obstacles that Lidar can't detect:
-    - Can go through
-    - Visible with Camera
-    - Smaller than Turtlebot
-    - Noise is not too much
